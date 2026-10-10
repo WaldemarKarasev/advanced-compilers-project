@@ -23,7 +23,8 @@ set(CMAKE_CXX_STANDARD 20)
 # )
 
 # common vars
-set(STELLA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR})
+set(STELLA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(STELLA_GC_IMPL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/gc)
 set(STELLA_RUNTIME_LIB stella_runtime)
 
@@ -64,9 +65,12 @@ function(create_stella_executable name c_src gc_name)
 
 endfunction()
 
+# gc sources
 add_subdirectory(gc)
 
-# examples
-# add_stella_example(chat)
+# gtest
+include(CTest)
 
-# TODO: gtest
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
