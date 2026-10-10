@@ -23,48 +23,27 @@ set(CMAKE_CXX_STANDARD 20)
 # )
 
 # common vars
-set(STELLA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(STELLA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR})
 set(STELLA_GC_IMPL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/gc)
+set(STELLA_RUNTIME_LIB stella_runtime)
 
 # build stella runtime
-add_library(stella_runtime STATIC
+add_library(${STELLA_RUNTIME_LIB} STATIC
     runtime/runtime.c
     runtime/scalar.c
 )
 
-target_include_directories(stella_runtime
+target_include_directories(${STELLA_RUNTIME_LIB}
     PUBLIC
         ${STELLA_INCLUDE_DIR}
 )
 
-# build gc stub
-add_library(stella_gc_stub STATIC
-    ${STELLA_GC_IMPL_DIR}/gc.c
-)
+# build stella executable
+function(create_stella_executable name c_src gc_name)
 
-target_include_directories(stella_gc_stub
-    PRIVATE
-        ${STELLA_INCLUDE_DIR}
-)
-
-# build semi-dfs + incremental extension gc
-add_library(stella_gc_semi_dfs STATIC
-    ${STELLA_GC_IMPL_DIR}/gc-semi-dfs.cpp
-)
-
-target_include_directories(stella_gc_semi_dfs
-    PRIVATE
-        ${STELLA_INCLUDE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-# build stella example
-function(add_stella_example name)
-
-    # 1. implementation example
     add_executable(${name}
-        runtime/main.c
-        examples/${name}.c
+        ${CMAKE_SOURCE_DIR}/runtime/main.c
+        ${c_src}
     )
 
     target_include_directories(${name}
@@ -74,8 +53,8 @@ function(add_stella_example name)
 
     target_link_libraries(${name}
         PRIVATE
-            stella_runtime
-            stella_gc_semi_dfs
+            ${STELLA_RUNTIME_LIB}
+            ${gc_name}
     )
 
     set_target_properties(${name}
@@ -83,26 +62,11 @@ function(add_stella_example name)
             LINKER_LANGUAGE CXX
     )
 
-    # 2. stub example
-    add_executable(${name}_stub
-        runtime/main.c
-        examples/${name}.c
-    )
-
-    target_include_directories(${name}_stub
-        PRIVATE
-            ${STELLA_INCLUDE_DIR}
-    )
-
-    target_link_libraries(${name}_stub
-        PRIVATE
-            stella_runtime
-            stella_gc_stub
-    )
-
 endfunction()
 
+add_subdirectory(gc)
+
 # examples
-add_stella_example(chat)
+# add_stella_example(chat)
 
 # TODO: gtest
