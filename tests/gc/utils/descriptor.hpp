@@ -1,6 +1,5 @@
 #pragma once
 
-#include "stella/runtime.h"
 #include <bindings/gc.hpp>
 
 #include <cstddef>
