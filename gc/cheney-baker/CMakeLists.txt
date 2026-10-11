@@ -2,14 +2,21 @@ cmake_minimum_required(VERSION 3.20)
 
 # build cheney-baker gc
 add_library(cheney_baker_gc STATIC
-    ${STELLA_GC_IMPL_DIR}/cheney-baker/gc.cpp
+    gc.cpp
+    gc_state.cpp
 )
 
 target_include_directories(cheney_baker_gc
     PRIVATE
         ${STELLA_INCLUDE_DIR}
         ${PROJECT_INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# target_link_libraries(cheney_baker_gc
+#     PRIVATE
+#         ${STELLA_RUNTIME_LIB}
+# )
 
 add_library(stella::cheney_baker_gc ALIAS cheney_baker_gc)
 

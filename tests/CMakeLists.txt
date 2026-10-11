@@ -29,8 +29,8 @@ function(add_gc_test test_name src_files gc_lib)
 
     target_link_libraries(${test_name}
         PRIVATE
-            ${STELLA_RUNTIME_LIB}
             ${gc_lib}
+            ${STELLA_RUNTIME_LIB}
             GTest::gtest_main
     )
 
