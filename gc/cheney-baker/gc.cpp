@@ -4,6 +4,8 @@
 
 #include "abi_errors.hpp"
 #include "gc_state.hpp"
+#include "object.hpp"
+#include "stella/runtime.h"
 
 namespace hw::stella::gc {
 // 
@@ -24,7 +26,9 @@ void init(const StellaGcConfig *config) {
     stella_abi_violation(errors::gc_invalid_config_heap_size);
   }
 
-  get_gc_state().Init(Lifecycle::Running, config->max_heap_bytes);
+  if (not get_gc_state().Init(config->max_heap_bytes)) {
+    stella_gc_out_of_memory(config->max_heap_bytes);
+  }
 }
 
 void shutdown(void) {
@@ -47,16 +51,73 @@ void register_permanent_root(StellaValue *root) {
 // alloc
 StellaValue alloc(const StellaObjectDescriptor *descriptor) { 
   require_running();
-  return nullptr; }
+
+  object::validate_descriptor(descriptor);
+
+  const size_t size = object::object_size(descriptor);
+
+  auto& gc_state = get_gc_state();
+
+  if (size > gc_state.MaxHeapSize()) {
+    stella_gc_out_of_memory(size);
+  }
+
+  std::byte* storage = gc_state.GetHeap().FromSpace().Allocate(size, alignof(StellaObject));
+
+  if (storage == nullptr) {
+    stella_gc_out_of_memory(size);
+  }
+
+  auto* object = reinterpret_cast<StellaObject*>(storage);
+
+  object::initialize_object(object, descriptor);
+
+  return object; 
+}
 
 // init
 void object_init_managed(StellaValue object, size_t index, StellaValue value) {
   require_running();
+
+  if (object == nullptr) {
+    stella_abi_violation(errors::gc_im_null_obj);
+  }
+
+  if (not get_gc_state().GetHeap().Owns(object)) {
+    stella_abi_violation(errors::gc_im_obj_not_owned);
+  }
+
+  object::validate_descriptor(object->descriptor);
+
+  if (index >= object->descriptor->managed_count) {
+    stella_abi_violation(errors::gc_im_init_index_out_of_range);
+  }
+
+  object->fields[index].managed = value;
 }
 void object_init_primitive(StellaValue object, size_t index,
                            StellaPrimitive value) {
-                            require_running();
-                           }
+  require_running();
+  if (object == nullptr) {
+      stella_abi_violation(errors::gc_im_null_obj);
+  }
+
+  if (!get_gc_state().GetHeap().Owns(object)) {
+      stella_abi_violation(errors::gc_im_obj_not_owned);
+  }
+
+  object::validate_descriptor(object->descriptor);
+
+  if (index >= object->descriptor->primitive_count) {
+      stella_abi_violation(errors::gc_im_init_index_out_of_range);
+  }
+
+  const std::size_t physical_index =
+      object->descriptor->managed_count + index;
+
+  object->fields[physical_index].primitive = value;
+                          
+}
 
 // read/write barriers
 StellaValue read_managed(StellaValue *object_root, size_t index) { 
