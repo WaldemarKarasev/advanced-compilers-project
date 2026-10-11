@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include "heap.hpp"
+#include "roots.hpp"
 
 namespace hw::stella::gc {
 
@@ -18,8 +19,16 @@ public:
 
   Lifecycle State() const & { return lifecycle_; }
   size_t MaxHeapSize() const & { return max_heap_bytes_; }
+  
+  // heap
   heap::Heap &GetHeap() & { return heap_; }
   const heap::Heap &GetHeap() const & { return heap_; }
+
+  // roots
+  roots::Roots& GetRoots() & { return roots_; }
+  const roots::Roots& GetRoots() const & { return roots_; }
+
+
   bool Init(size_t max_heap_bytes) & {
     if (not heap_.Init(max_heap_bytes)) {
       return false;
@@ -32,6 +41,7 @@ public:
   }
 
   void Deinit() & {
+    roots_.Clear();
     heap_.Deinit();
 
     lifecycle_ = Lifecycle::Shutdown;
@@ -43,6 +53,7 @@ private:
   size_t max_heap_bytes_ = 0;
 
   heap::Heap heap_;
+  roots::Roots roots_;
 };
 
 void require_running();

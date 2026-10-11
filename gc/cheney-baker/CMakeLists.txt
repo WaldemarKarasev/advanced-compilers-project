@@ -6,6 +6,7 @@ add_library(cheney_baker_gc STATIC
     gc.cpp
     heap.cpp
     object.cpp
+    roots.cpp
 )
 
 target_include_directories(cheney_baker_gc

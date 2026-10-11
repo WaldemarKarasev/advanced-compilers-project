@@ -8,7 +8,7 @@
 #include "stella/runtime.h"
 
 namespace hw::stella::gc {
-// 
+//
 void init(const StellaGcConfig *config) {
   if (get_gc_state().State() != Lifecycle::NotInit) {
     stella_abi_violation(errors::gc_already_init);
@@ -34,45 +34,92 @@ void init(const StellaGcConfig *config) {
 void shutdown(void) {
   require_running();
 
-  get_gc_state().Deinit();
+  auto& gc_state = get_gc_state();
+
+  if (not gc_state.GetRoots().DynamicEmpty()) {
+    stella_abi_violation(errors::gc_pr_shutdown_with_roots);
+  }
+
+  gc_state.Deinit();
 }
 
 // root handling
 void push_root(StellaValue *root) {
   require_running();
+
+  if (root == nullptr) {
+    stella_abi_violation(errors::gc_pr_null_root);
+  }
+
+  auto &roots = get_gc_state().GetRoots();
+
+  if (roots.IsRegistered(root)) {
+    stella_abi_violation(errors::gc_pr_duplicate_root);
+  }
+
+  if (not roots.PushDynamic(root)) {
+    stella_abi_violation(errors::gc_pr_root_storage_exhausted);
+  }
 }
 void pop_root(StellaValue *root) {
   require_running();
+
+  auto &roots = get_gc_state().GetRoots();
+
+  if (roots.DynamicEmpty()) {
+    stella_abi_violation(errors::gc_pr_root_stack_empty);
+  }
+
+  if (roots.DynamicTop() != root) {
+    stella_abi_violation(errors::gc_pr_root_not_on_top);
+  }
+
+  roots.PopDynamic();
 }
 void register_permanent_root(StellaValue *root) {
   require_running();
+
+  if (root == nullptr) {
+    stella_abi_violation(errors::gc_pr_null_root);
+  }
+
+  auto &roots = get_gc_state().GetRoots();
+
+  if (roots.IsRegistered(root)) {
+    stella_abi_violation(errors::gc_pr_duplicate_root);
+  }
+
+  if (!roots.RegisterPermanent(root)) {
+    stella_abi_violation(errors::gc_pr_root_storage_exhausted);
+  }
 }
 
 // alloc
-StellaValue alloc(const StellaObjectDescriptor *descriptor) { 
+StellaValue alloc(const StellaObjectDescriptor *descriptor) {
   require_running();
 
   object::validate_allocation_descriptor(descriptor);
 
   const size_t size = object::object_size(descriptor);
 
-  auto& gc_state = get_gc_state();
+  auto &gc_state = get_gc_state();
 
   if (size > gc_state.MaxHeapSize()) {
     stella_gc_out_of_memory(size);
   }
 
-  std::byte* storage = gc_state.GetHeap().FromSpace().Allocate(size, alignof(StellaObject));
+  std::byte *storage =
+      gc_state.GetHeap().FromSpace().Allocate(size, alignof(StellaObject));
 
   if (storage == nullptr) {
     stella_gc_out_of_memory(size);
   }
 
-  auto* object = reinterpret_cast<StellaObject*>(storage);
+  auto *object = reinterpret_cast<StellaObject *>(storage);
 
   object::initialize_object(object, descriptor);
 
-  return object; 
+  return object;
 }
 
 // init
@@ -95,38 +142,38 @@ void object_init_managed(StellaValue object, size_t index, StellaValue value) {
 
   object->fields[index].managed = value;
 }
+
 void object_init_primitive(StellaValue object, size_t index,
                            StellaPrimitive value) {
   require_running();
   if (object == nullptr) {
-      stella_abi_violation(errors::gc_im_null_obj);
+    stella_abi_violation(errors::gc_im_null_obj);
   }
 
   if (!get_gc_state().GetHeap().Owns(object)) {
-      stella_abi_violation(errors::gc_im_obj_not_owned);
+    stella_abi_violation(errors::gc_im_obj_not_owned);
   }
 
   object::validate_descriptor(object->descriptor);
 
   if (index >= object->descriptor->primitive_count) {
-      stella_abi_violation(errors::gc_im_init_index_out_of_range);
+    stella_abi_violation(errors::gc_im_init_index_out_of_range);
   }
 
-  const std::size_t physical_index =
-      object->descriptor->managed_count + index;
+  const std::size_t physical_index = object->descriptor->managed_count + index;
 
   object->fields[physical_index].primitive = value;
-                          
 }
 
 // read/write barriers
-StellaValue read_managed(StellaValue *object_root, size_t index) { 
+StellaValue read_managed(StellaValue *object_root, size_t index) {
   require_running();
-  return {}; }
+  return {};
+}
 void write_managed(StellaValue *object_root, size_t index,
                    StellaValue *value_root) {
-                    require_running();
-                   }
+  require_running();
+}
 
 // read/write primitives
 StellaPrimitive object_read_primitive(StellaValue object, size_t index) {
@@ -135,26 +182,20 @@ StellaPrimitive object_read_primitive(StellaValue object, size_t index) {
 }
 void object_write_primitive(StellaValue object, size_t index,
                             StellaPrimitive value) {
-                              require_running();
-                            }
+  require_running();
+}
 
 void update_object(StellaValue *object_root,
                    const StellaObjectDescriptor *new_descriptor,
                    StellaValue *const new_managed_roots[],
                    const StellaPrimitive new_primitives[]) {
-                    require_running();
-                   }
+  require_running();
+}
 
 // diagnostics
-void print_statistics(FILE *output) {
-  require_running();
-}
-void print_state(FILE *output) {
-  require_running();
-}
-void print_roots(FILE *output) {
-  require_running();
-}
+void print_statistics(FILE *output) { require_running(); }
+void print_state(FILE *output) { require_running(); }
+void print_roots(FILE *output) { require_running(); }
 } // namespace hw::stella::gc
 
 extern "C" {
