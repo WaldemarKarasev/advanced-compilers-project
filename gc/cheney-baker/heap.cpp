@@ -56,7 +56,7 @@ std::byte *SemiSpace::Allocate(size_t bytes, size_t alignment) noexcept {
 void SemiSpace::Reset() noexcept { top_ = storage_.get(); }
 
 bool SemiSpace::Contains(const void *ptr) const noexcept {
-  if (ptr != nullptr || storage_ == nullptr) {
+  if (ptr == nullptr || storage_ == nullptr) {
     return false;
   }
 

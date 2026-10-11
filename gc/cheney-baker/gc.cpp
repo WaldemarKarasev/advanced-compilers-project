@@ -52,7 +52,7 @@ void register_permanent_root(StellaValue *root) {
 StellaValue alloc(const StellaObjectDescriptor *descriptor) { 
   require_running();
 
-  object::validate_descriptor(descriptor);
+  object::validate_allocation_descriptor(descriptor);
 
   const size_t size = object::object_size(descriptor);
 
