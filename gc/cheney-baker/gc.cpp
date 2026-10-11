@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include "abi_errors.hpp"
+#include "collection.hpp"
 #include "gc_state.hpp"
 #include "object.hpp"
 #include "stella/runtime.h"
@@ -34,7 +35,7 @@ void init(const StellaGcConfig *config) {
 void shutdown(void) {
   require_running();
 
-  auto& gc_state = get_gc_state();
+  auto &gc_state = get_gc_state();
 
   if (not gc_state.GetRoots().DynamicEmpty()) {
     stella_abi_violation(errors::gc_pr_shutdown_with_roots);
@@ -112,7 +113,15 @@ StellaValue alloc(const StellaObjectDescriptor *descriptor) {
       gc_state.GetHeap().FromSpace().Allocate(size, alignof(StellaObject));
 
   if (storage == nullptr) {
-    stella_gc_out_of_memory(size);
+
+    collection::Collect();
+
+    storage =
+        gc_state.GetHeap().FromSpace().Allocate(size, alignof(StellaObject));
+
+    if (storage == nullptr) {
+      stella_gc_out_of_memory(size);
+    }
   }
 
   auto *object = reinterpret_cast<StellaObject *>(storage);

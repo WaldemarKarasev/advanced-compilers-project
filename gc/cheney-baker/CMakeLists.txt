@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 # build cheney-baker gc
 add_library(cheney_baker_gc STATIC
+    collection.cpp
     copying.cpp
     gc_state.cpp
     gc.cpp
