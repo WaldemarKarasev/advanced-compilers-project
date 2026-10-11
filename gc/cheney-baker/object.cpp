@@ -14,7 +14,7 @@ bool add_overflows(size_t lhs, size_t rhs) {
 }
 
 bool multiply_overflows(size_t lhs, size_t rhs) {
-  return lhs > std::numeric_limits<size_t>::max() / rhs;
+  return rhs != 0 && lhs > std::numeric_limits<size_t>::max() / rhs;
 }
 
 } // namespace
