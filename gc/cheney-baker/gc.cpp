@@ -4,9 +4,9 @@
 
 #include "abi_errors.hpp"
 #include "collection.hpp"
+#include "copying.hpp"
 #include "gc_state.hpp"
 #include "object.hpp"
-#include "stella/runtime.h"
 
 namespace hw::stella::gc {
 //
@@ -97,6 +97,7 @@ void register_permanent_root(StellaValue *root) {
 
 // alloc
 StellaValue alloc(const StellaObjectDescriptor *descriptor) {
+
   require_running();
 
   object::validate_allocation_descriptor(descriptor);
@@ -104,31 +105,86 @@ StellaValue alloc(const StellaObjectDescriptor *descriptor) {
   const size_t size = object::object_size(descriptor);
 
   auto &gc_state = get_gc_state();
+  auto &heap = gc_state.GetHeap();
 
   if (size > gc_state.MaxHeapSize()) {
     stella_gc_out_of_memory(size);
   }
 
-  std::byte *storage =
-      gc_state.GetHeap().FromSpace().Allocate(size, alignof(StellaObject));
+  if (gc_state.CollectionState() == CollectionPhase::Collecting) {
 
-  if (storage == nullptr) {
+    collection::Step(gc_state.StepBudget());
+  }
 
-    collection::Collect();
+  if (gc_state.CollectionState() == CollectionPhase::Idle) {
 
-    storage =
-        gc_state.GetHeap().FromSpace().Allocate(size, alignof(StellaObject));
+    std::byte *storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
 
-    if (storage == nullptr) {
-      stella_gc_out_of_memory(size);
+    if (storage != nullptr) {
+      auto *result = reinterpret_cast<StellaObject *>(storage);
+
+      object::initialize_object(result, descriptor);
+
+      return result;
+    }
+
+    collection::BeginCollectCycle();
+
+    collection::Step(gc_state.StepBudget());
+  }
+
+  if (gc_state.CollectionState() == CollectionPhase::Idle) {
+
+    std::byte *storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
+
+    if (storage != nullptr) {
+      auto *result = reinterpret_cast<StellaObject *>(storage);
+
+      object::initialize_object(result, descriptor);
+
+      return result;
     }
   }
 
-  auto *object = reinterpret_cast<StellaObject *>(storage);
+  if (gc_state.CollectionState() == CollectionPhase::Collecting) {
 
-  object::initialize_object(object, descriptor);
+    std::byte *storage =
+        heap.ToSpace().AllocateHigh(size, alignof(StellaObject));
 
-  return object;
+    if (storage != nullptr) {
+      auto *result = reinterpret_cast<StellaObject *>(storage);
+
+      object::initialize_object(result, descriptor);
+
+      return result;
+    }
+
+    collection::Collect();
+  }
+
+  std::byte *storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
+
+  if (storage != nullptr) {
+    auto *result = reinterpret_cast<StellaObject *>(storage);
+
+    object::initialize_object(result, descriptor);
+
+    return result;
+  }
+
+  collection::Collect();
+
+  storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
+
+  if (storage == nullptr) {
+    stella_gc_out_of_memory(size);
+  }
+
+  auto *result = reinterpret_cast<StellaObject *>(storage);
+
+  object::initialize_object(result, descriptor);
+
+  return result;
 }
 
 // init
@@ -182,11 +238,19 @@ StellaValue read_managed(StellaValue *object_root, size_t index) {
     stella_abi_violation(errors::gc_null_object_root);
   }
 
+  collection::IncrementalStep();
+
   StellaValue value = *object_root;
 
   object::validate_managed_index(value, index);
 
-  return value->fields[index].managed;
+  StellaValue &field = value->fields[index].managed;
+
+  if (get_gc_state().CollectionState() == CollectionPhase::Collecting) {
+    field = copying::Forward(field);
+  }
+
+  return field;
 }
 
 void write_managed(StellaValue *object_root, size_t index,
@@ -200,6 +264,8 @@ void write_managed(StellaValue *object_root, size_t index,
   if (value_root == nullptr) {
     stella_abi_violation(errors::gc_null_value_root);
   }
+
+  collection::IncrementalStep();
 
   StellaValue object = *object_root;
 
@@ -245,6 +311,8 @@ void update_object(StellaValue *object_root,
   if (object_root == nullptr) {
     stella_abi_violation(errors::gc_null_object_root);
   }
+
+  collection::IncrementalStep();
 
   StellaValue object = *object_root;
 

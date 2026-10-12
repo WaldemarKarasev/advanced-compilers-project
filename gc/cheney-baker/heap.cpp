@@ -16,6 +16,7 @@ bool SemiSpace::Init(size_t capacity) noexcept {
   storage_.reset(memory);
   top_ = memory;
   capacity_ = capacity;
+  limit_ = top_ + capacity_;
 
   return true;
 }
@@ -23,6 +24,7 @@ bool SemiSpace::Init(size_t capacity) noexcept {
 void SemiSpace::Deinit() noexcept {
   storage_.reset();
   top_ = nullptr;
+  limit_ = nullptr;
   capacity_ = 0;
 }
 
@@ -53,7 +55,38 @@ std::byte *SemiSpace::Allocate(size_t bytes, size_t alignment) noexcept {
   return result;
 }
 
-void SemiSpace::Reset() noexcept { top_ = storage_.get(); }
+std::byte *SemiSpace::AllocateHigh(size_t bytes, size_t alignment) noexcept {
+
+  if (storage_ == nullptr) {
+    return nullptr;
+  }
+
+  if (bytes > Free()) {
+    return nullptr;
+  }
+
+  auto candidate = reinterpret_cast<std::uintptr_t>(limit_) - bytes;
+
+  const auto remainder = candidate % alignment;
+
+  candidate -= remainder;
+
+  auto *new_limit = reinterpret_cast<std::byte *>(candidate);
+
+  if (new_limit < top_) {
+    return nullptr;
+  }
+
+  limit_ = new_limit;
+
+  return limit_;
+}
+
+void SemiSpace::Reset() noexcept {
+  top_ = storage_.get();
+
+  limit_ = storage_ == nullptr ? nullptr : top_ + capacity_;
+}
 
 bool SemiSpace::Contains(const void *ptr) const noexcept {
   if (ptr == nullptr || storage_ == nullptr) {
@@ -84,11 +117,24 @@ const std::byte *SemiSpace::End() const noexcept {
 size_t SemiSpace::Capacity() const noexcept { return capacity_; }
 
 size_t SemiSpace::Used() const noexcept {
-  return storage_ == nullptr ? 0
-                             : static_cast<std::size_t>(top_ - storage_.get());
+  if (storage_ == nullptr) {
+    return 0;
+  }
+
+  const size_t low = static_cast<size_t>(top_ - Begin());
+
+  const size_t high = static_cast<size_t>(End() - limit_);
+
+  return low + high;
 }
 
-size_t SemiSpace::Free() const noexcept { return capacity_ - Used(); }
+size_t SemiSpace::Free() const noexcept {
+  if (storage_ == nullptr) {
+    return 0;
+  }
+
+  return static_cast<size_t>(limit_ - top_);
+}
 
 void SemiSpace::FreeDeleter::operator()(std::byte *ptr) const noexcept {
   std::free(ptr);
@@ -126,16 +172,14 @@ SemiSpace &Heap::ToSpace() noexcept { return *to_; }
 const SemiSpace &Heap::FromSpace() const noexcept { return *from_; }
 const SemiSpace &Heap::ToSpace() const noexcept { return *to_; }
 
-bool Heap::Owns(const void *ptr) const noexcept
-{
-    return space_a_.Contains(ptr) || space_b_.Contains(ptr);
+bool Heap::Owns(const void *ptr) const noexcept {
+  return space_a_.Contains(ptr) || space_b_.Contains(ptr);
 }
 
-void Heap::SwapSpaces() noexcept
-{
-    std::swap(from_, to_);
+void Heap::SwapSpaces() noexcept {
+  std::swap(from_, to_);
 
-    to_->Reset();
+  to_->Reset();
 }
 
 } // namespace hw::stella::gc::heap

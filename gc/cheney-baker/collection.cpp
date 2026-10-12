@@ -15,6 +15,9 @@ void BeginCollectCycle() {
   // clean to space before start copying
   heap.ToSpace().Reset();
 
+  // begin collecting
+  gc_state.SetCollectionState(CollectionPhase::Collecting);
+
   // roots traversal
   for (StellaValue *root : roots.Dynamic()) {
     *root = copying::Forward(*root);
@@ -65,9 +68,23 @@ void FinishCycle() {
   state.SetCollectionState(CollectionPhase::Idle);
 }
 
+void IncrementalStep() {
+  auto &gc_state = get_gc_state();
+
+  if (gc_state.CollectionState() != CollectionPhase::Collecting) {
+    return;
+  }
+
+  Step(gc_state.StepBudget());
+}
+
 void Collect() {
 
-  BeginCollectCycle();
+  auto &gc_state = get_gc_state();
+
+  if (gc_state.CollectionState() == CollectionPhase::Idle) {
+    BeginCollectCycle();
+  }
 
   while (get_gc_state().CollectionState() == CollectionPhase::Collecting) {
     collection::Step(std::numeric_limits<std::size_t>::max());

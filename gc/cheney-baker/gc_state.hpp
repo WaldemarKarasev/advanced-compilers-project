@@ -18,6 +18,8 @@ enum class CollectionPhase {
   Collecting,
 };
 
+static constexpr size_t kDefaultStepBudget = 1;
+
 class GcState {
 public:
   GcState() = default;
@@ -62,6 +64,10 @@ public:
 
   void SetScan(std::byte *scan) noexcept { scan_ = scan; }
 
+  size_t StepBudget() const noexcept { return step_budget_; }
+
+  void SetStepBudget(size_t value) noexcept { step_budget_ = value; }
+
 private:
   Lifecycle lifecycle_ = Lifecycle::NotInit;
   size_t max_heap_bytes_ = 0;
@@ -72,6 +78,8 @@ private:
   CollectionPhase collection_phase_ = CollectionPhase::Idle;
 
   std::byte *scan_ = nullptr;
+  
+  size_t step_budget_ = kDefaultStepBudget;
 };
 
 void require_running();

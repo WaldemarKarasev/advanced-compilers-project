@@ -16,6 +16,7 @@ public:
   void Deinit() noexcept;
 
   std::byte *Allocate(size_t bytes, size_t alignment) noexcept;
+  std::byte *AllocateHigh(size_t bytes, size_t alignment) noexcept;
 
   void Reset() noexcept;
 
@@ -33,6 +34,10 @@ public:
   size_t Used() const noexcept;
   size_t Free() const noexcept;
 
+  std::byte *Limit() noexcept { return limit_; }
+
+  const std::byte *Limit() const noexcept { return limit_; }
+
 private:
   struct FreeDeleter {
     void operator()(std::byte *ptr) const noexcept;
@@ -40,6 +45,7 @@ private:
 
   std::unique_ptr<std::byte, FreeDeleter> storage_;
   std::byte *top_ = nullptr;
+  std::byte *limit_ = nullptr;
   size_t capacity_ = 0;
 };
 
