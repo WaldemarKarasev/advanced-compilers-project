@@ -177,21 +177,64 @@ void object_init_primitive(StellaValue object, size_t index,
 // read/write barriers
 StellaValue read_managed(StellaValue *object_root, size_t index) {
   require_running();
-  return {};
+
+  if (object_root == nullptr) {
+    stella_abi_violation(errors::gc_null_object_root);
+  }
+
+  StellaValue value = *object_root;
+
+  object::validate_managed_index(value, index);
+
+  return value->fields[index].managed;
 }
+
 void write_managed(StellaValue *object_root, size_t index,
                    StellaValue *value_root) {
   require_running();
+
+  if (object_root == nullptr) {
+    stella_abi_violation(errors::gc_null_object_root);
+  }
+
+  if (value_root == nullptr) {
+    stella_abi_violation(errors::gc_null_value_root);
+  }
+
+  StellaValue object = *object_root;
+
+  object::validate_managed_index(object, index);
+
+  if ((object->descriptor->flags & STELLA_DESCRIPTOR_STATIC) != 0) {
+    stella_abi_violation(errors::gc_write_static);
+  }
+
+  object->fields[index].managed = *value_root;
 }
 
 // read/write primitives
 StellaPrimitive object_read_primitive(StellaValue object, size_t index) {
   require_running();
-  return {};
+
+  object::validate_primitive_index(object, index);
+
+  const size_t physical_index = object->descriptor->managed_count + index;
+
+  return object->fields[physical_index].primitive;
 }
 void object_write_primitive(StellaValue object, size_t index,
                             StellaPrimitive value) {
   require_running();
+
+  object::validate_primitive_index(object, index);
+
+  if ((object->descriptor->flags & STELLA_DESCRIPTOR_STATIC) != 0) {
+    stella_abi_violation(errors::obj_write_static);
+  }
+
+  const std::size_t physical_index = object->descriptor->managed_count + index;
+
+  object->fields[physical_index].primitive = value;
 }
 
 void update_object(StellaValue *object_root,
@@ -199,6 +242,65 @@ void update_object(StellaValue *object_root,
                    StellaValue *const new_managed_roots[],
                    const StellaPrimitive new_primitives[]) {
   require_running();
+  if (object_root == nullptr) {
+    stella_abi_violation(errors::gc_null_object_root);
+  }
+
+  StellaValue object = *object_root;
+
+  object::validate_object(object);
+  object::validate_descriptor(new_descriptor);
+
+  const auto *old_descriptor = object->descriptor;
+
+  if ((old_descriptor->flags & STELLA_DESCRIPTOR_UPDATABLE) == 0) {
+    stella_abi_violation(errors::obj_not_updatable);
+  }
+
+  if ((new_descriptor->flags & STELLA_DESCRIPTOR_STATIC) != 0) {
+    stella_abi_violation(errors::obj_update_static_descriptor);
+  }
+
+  if (old_descriptor->slot_capacity != new_descriptor->slot_capacity) {
+    stella_abi_violation(errors::obj_update_capacity_mismatch);
+  }
+
+  if (new_descriptor->managed_count > 0 && new_managed_roots == nullptr) {
+    stella_abi_violation(errors::obj_null_managed_roots);
+  }
+
+  if (new_descriptor->primitive_count > 0 && new_primitives == nullptr) {
+    stella_abi_violation(errors::obj_null_primitives);
+  }
+
+  object = *object_root;
+
+  const std::size_t m = new_descriptor->managed_count;
+
+  const std::size_t p = new_descriptor->primitive_count;
+
+  const std::size_t c = new_descriptor->slot_capacity;
+
+  // Managed fields.
+  for (std::size_t i = 0; i < m; ++i) {
+    if (new_managed_roots[i] == nullptr) {
+      stella_abi_violation(errors::gc_null_value_root);
+    }
+
+    object->fields[i].managed = *new_managed_roots[i];
+  }
+
+  // primitive fields
+  for (std::size_t i = 0; i < p; ++i) {
+    object->fields[m + i].primitive = new_primitives[i];
+  }
+
+  // inactive part
+  for (std::size_t i = m + p; i < c; ++i) {
+    object->fields[i].primitive = 0;
+  }
+
+  object->descriptor = new_descriptor;
 }
 
 // diagnostics

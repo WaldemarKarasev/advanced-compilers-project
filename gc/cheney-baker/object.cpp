@@ -58,6 +58,31 @@ void validate_allocation_descriptor(const StellaObjectDescriptor *descriptor) {
   }
 }
 
+void validate_object(StellaValue object) {
+  if (object == nullptr) {
+    stella_abi_violation(errors::obj_null_object);
+  }
+
+  validate_descriptor(object->descriptor);
+}
+
+void validate_managed_index(StellaValue object, std::size_t index) {
+  validate_object(object);
+
+  if (index >= object->descriptor->managed_count) {
+    stella_abi_violation(errors::obj_managed_index_out_of_range);
+  }
+}
+
+void validate_primitive_index(StellaValue object, std::size_t index) {
+  validate_object(object);
+
+  if (index >= object->descriptor->primitive_count) {
+    stella_abi_violation(errors::obj_primitive_index_out_of_range);
+  }
+
+}
+
 std::size_t object_size(const StellaObjectDescriptor *descriptor) {
   if (multiply_overflows(descriptor->slot_capacity, sizeof(StellaSlot))) {
     stella_abi_violation(errors::obj_slot_cap_overflow);

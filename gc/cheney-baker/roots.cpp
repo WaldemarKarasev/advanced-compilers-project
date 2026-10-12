@@ -1,6 +1,7 @@
 #include "roots.hpp"
 
 #include <algorithm>
+#include <new>
 
 namespace hw::stella::gc::roots {
 
