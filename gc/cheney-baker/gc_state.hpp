@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include "gc_stats.hpp"
 #include "heap.hpp"
 #include "roots.hpp"
 
@@ -32,6 +33,12 @@ public:
     lifecycle_ = Lifecycle::Running;
     max_heap_bytes_ = max_heap_bytes;
 
+    stats_.Reset();
+
+    collection_phase_ = CollectionPhase::Idle;
+    scan_ = nullptr;
+    step_budget_ = kDefaultStepBudget;
+
     return true;
   }
 
@@ -41,6 +48,10 @@ public:
 
     lifecycle_ = Lifecycle::Shutdown;
     max_heap_bytes_ = 0;
+
+    collection_phase_ = CollectionPhase::Idle;
+    scan_ = nullptr;
+    step_budget_ = kDefaultStepBudget;
   }
 
   Lifecycle State() const & { return lifecycle_; }
@@ -53,6 +64,10 @@ public:
   // roots
   roots::Roots &GetRoots() & { return roots_; }
   const roots::Roots &GetRoots() const & { return roots_; }
+
+  // stats
+  Statistics &GetStats() { return stats_; }
+  const Statistics &GetStats() const { return stats_; }
 
   CollectionPhase CollectionState() const noexcept { return collection_phase_; }
 
@@ -78,8 +93,10 @@ private:
   CollectionPhase collection_phase_ = CollectionPhase::Idle;
 
   std::byte *scan_ = nullptr;
-  
+
   size_t step_budget_ = kDefaultStepBudget;
+
+  Statistics stats_;
 };
 
 void require_running();
