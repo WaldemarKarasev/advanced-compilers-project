@@ -1,36 +1,14 @@
-
 #include <bindings/gc.hpp>
 #include <cstddef>
 
 #include "abi_errors.hpp"
 #include "collection.hpp"
 #include "copying.hpp"
+#include "gc_helpers.hpp"
 #include "gc_state.hpp"
 #include "object.hpp"
 
 namespace hw::stella::gc {
-
-namespace {
-
-StellaValue finish_allocation(std::byte *storage,
-                              const StellaObjectDescriptor *descriptor,
-                              std::size_t size) {
-
-  auto *result = reinterpret_cast<StellaObject *>(storage);
-
-  object::initialize_object(result, descriptor);
-
-  auto &state = get_gc_state();
-
-  const bool during_collection =
-      state.CollectionState() == CollectionPhase::Collecting;
-
-  state.GetStats().RecordAllocation(size, during_collection);
-
-  return result;
-}
-
-} // namespace
 
 //
 void init(const StellaGcConfig *config) {
@@ -406,9 +384,133 @@ void update_object(StellaValue *object_root,
 }
 
 // diagnostics
-void print_statistics(FILE *output) { require_running(); }
-void print_state(FILE *output) { require_running(); }
-void print_roots(FILE *output) { require_running(); }
+void print_statistics(FILE *output) {
+  require_running();
+
+  if (output == nullptr) {
+    stella_abi_violation(errors::gc_null_output);
+  }
+
+  const auto &gc_state = get_gc_state();
+  const auto &stats = gc_state.GetStats();
+  const auto &roots = gc_state.GetRoots();
+
+  std::fprintf(
+      output,
+      "=== Stella Cheney-Baker GC statistics ===\n"
+      "allocated bytes: %zu\n"
+      "allocated objects: %zu\n"
+      "\n"
+      "completed cycles: %zu\n"
+      "normal incremental steps: %zu\n"
+      "alloc budget exceeded: %zu\n"
+      "\n"
+      "occupied bytes: %zu\n"
+      "peak occupied bytes: %zu\n"
+      "\n"
+      "managed reads: %zu\n"
+      "managed writes: %zu\n"
+      "primitive reads: %zu\n"
+      "primitive writes: %zu\n"
+      "\n"
+      "read barrier activations: %zu\n"
+      "write barrier activations: %zu\n"
+      "\n"
+      "dynamic root depth: %zu\n"
+      "peak dynamic root depth: %zu\n"
+      "permanent roots: %zu\n"
+      "\n"
+      "step budget: %zu\n",
+      stats.allocated_bytes, stats.allocated_objects, stats.completed_cycles,
+      stats.normal_steps, stats.alloc_budget_exceeded, stats.occupied_bytes,
+      stats.peak_occupied_bytes, stats.managed_reads, stats.managed_writes,
+      stats.primitive_reads, stats.primitive_writes,
+      stats.read_barrier_activations, stats.write_barrier_activations,
+      roots.Dynamic().size(), stats.peak_dynamic_root_depth,
+      roots.Permanent().size(), gc_state.StepBudget());
+}
+
+void print_state(FILE *output) {
+  require_running();
+
+  if (output == nullptr) {
+    stella_abi_violation(errors::gc_null_output);
+  }
+
+  auto &state = get_gc_state();
+  auto &heap = state.GetHeap();
+
+  const bool collecting =
+      state.CollectionState() == CollectionPhase::Collecting;
+
+  std::fprintf(output,
+               "=== Stella Cheney-Baker GC state ===\n"
+               "phase: %s\n"
+               "max heap bytes: %zu\n"
+               "step budget: %zu\n",
+               collecting ? "collecting" : "idle", state.MaxHeapSize(),
+               state.StepBudget());
+
+  if (collecting) {
+    std::fprintf(output,
+                 "\n"
+                 "Baker state:\n"
+                 "  scan=%p\n"
+                 "  next=%p\n"
+                 "  limit=%p\n",
+                 static_cast<void *>(state.Scan()),
+                 static_cast<void *>(heap.ToSpace().Top()),
+                 static_cast<void *>(heap.ToSpace().Limit()));
+  } else {
+    std::fprintf(output, "\n"
+                         "Baker state:\n"
+                         "  scan=(nil)\n"
+                         "  cycle inactive\n");
+  }
+
+  std::fprintf(output, "\n");
+
+  print_space(output, "from-space", heap.FromSpace());
+
+  std::fprintf(output, "\n");
+
+  print_space(output, "to-space", heap.ToSpace());
+}
+
+void print_roots(FILE *output) {
+  require_running();
+
+  if (output == nullptr) {
+    stella_abi_violation(errors::gc_null_output);
+  }
+
+  const auto &roots = get_gc_state().GetRoots();
+
+  std::fprintf(output,
+               "=== Stella GC roots ===\n"
+               "dynamic roots: %zu\n",
+               roots.DynamicSize());
+
+  std::size_t index = 0;
+
+  for (StellaValue *root : roots.Dynamic()) {
+    std::fprintf(output, "  dynamic[%zu]: slot=%p value=%p\n", index,
+                 static_cast<void *>(root), static_cast<void *>(*root));
+
+    ++index;
+  }
+
+  std::fprintf(output, "permanent roots: %zu\n", roots.PermanentSize());
+
+  index = 0;
+
+  for (StellaValue *root : roots.Permanent()) {
+    std::fprintf(output, "  permanent[%zu]: slot=%p value=%p\n", index,
+                 static_cast<void *>(root), static_cast<void *>(*root));
+
+    ++index;
+  }
+}
 } // namespace hw::stella::gc
 
 extern "C" {
