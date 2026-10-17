@@ -21,6 +21,15 @@ public:
     return dynamic_.empty() ? nullptr : dynamic_.back();
   }
 
+  size_t DynamicSize() const noexcept {
+    return dynamic_.size();
+  }
+
+  size_t PermanentSize() const noexcept {
+    return permanent_.size();
+  }
+
+
   const std::vector<StellaValue *> &Dynamic() const noexcept {
     return dynamic_;
   }

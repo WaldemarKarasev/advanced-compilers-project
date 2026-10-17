@@ -56,6 +56,12 @@ struct Statistics {
 
     ++completed_cycles;
   }
+
+  void UpdatePeakDynRootDepth(size_t depth) {
+    if (depth > peak_dynamic_root_depth) {
+      peak_dynamic_root_depth = depth;
+    }
+  }
 };
 
 } // namespace hw::stella::gc

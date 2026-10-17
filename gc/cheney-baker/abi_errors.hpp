@@ -32,6 +32,7 @@ inline constexpr char gc_pr_shutdown_with_roots[] =
 inline constexpr char gc_null_object_root[] = "Object root is nullptr!";
 inline constexpr char gc_null_value_root[] = "Value root is nullptr!";
 inline constexpr char gc_write_static[] = "Cannot write static object!";
+inline constexpr char gc_null_output[] = "Output stream is nullptr!";
 
 // object validation messages
 inline constexpr char obj_null_obj_descriptor[] = "null object descriptor!";

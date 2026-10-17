@@ -13,7 +13,8 @@ StellaValue Forward(StellaValue value) {
     return nullptr;
   }
 
-  auto &heap = get_gc_state().GetHeap();
+  auto &gc_state = get_gc_state();
+  auto &heap = gc_state.GetHeap();
 
   // if value already copied to to-space
   if (!heap.FromSpace().Contains(value)) {
@@ -35,7 +36,7 @@ StellaValue Forward(StellaValue value) {
   }
 
   std::memcpy(storage, value, size);
-  
+
   auto *copy = reinterpret_cast<StellaObject *>(storage);
 
   copy->fields = copy->descriptor->slot_capacity == 0
@@ -45,6 +46,10 @@ StellaValue Forward(StellaValue value) {
   copy->gc_word = 0;
 
   value->gc_word = reinterpret_cast<std::uintptr_t>(copy);
+
+  if (gc_state.CollectionState() == CollectionPhase::Collecting) {
+    gc_state.GetStats().RecordCopied(size);
+  }
 
   return copy;
 }

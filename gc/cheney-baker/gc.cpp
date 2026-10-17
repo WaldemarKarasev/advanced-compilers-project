@@ -9,6 +9,29 @@
 #include "object.hpp"
 
 namespace hw::stella::gc {
+
+namespace {
+
+StellaValue finish_allocation(std::byte *storage,
+                              const StellaObjectDescriptor *descriptor,
+                              std::size_t size) {
+
+  auto *result = reinterpret_cast<StellaObject *>(storage);
+
+  object::initialize_object(result, descriptor);
+
+  auto &state = get_gc_state();
+
+  const bool during_collection =
+      state.CollectionState() == CollectionPhase::Collecting;
+
+  state.GetStats().RecordAllocation(size, during_collection);
+
+  return result;
+}
+
+} // namespace
+
 //
 void init(const StellaGcConfig *config) {
   if (get_gc_state().State() != Lifecycle::NotInit) {
@@ -61,6 +84,8 @@ void push_root(StellaValue *root) {
   if (not roots.PushDynamic(root)) {
     stella_abi_violation(errors::gc_pr_root_storage_exhausted);
   }
+
+  get_gc_state().GetStats().UpdatePeakDynRootDepth(roots.Dynamic().size());
 }
 void pop_root(StellaValue *root) {
   require_running();
@@ -111,9 +136,19 @@ StellaValue alloc(const StellaObjectDescriptor *descriptor) {
     stella_gc_out_of_memory(size);
   }
 
-  if (gc_state.CollectionState() == CollectionPhase::Collecting) {
+  bool budget_exceeded = false;
 
-    collection::Step(gc_state.StepBudget());
+  auto emergency_collect = [&]() {
+    if (!budget_exceeded) {
+      ++gc_state.GetStats().alloc_budget_exceeded;
+      budget_exceeded = true;
+    }
+
+    collection::Collect();
+  };
+
+  if (gc_state.CollectionState() == CollectionPhase::Collecting) {
+    collection::IncrementalStep();
   }
 
   if (gc_state.CollectionState() == CollectionPhase::Idle) {
@@ -121,16 +156,12 @@ StellaValue alloc(const StellaObjectDescriptor *descriptor) {
     std::byte *storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
 
     if (storage != nullptr) {
-      auto *result = reinterpret_cast<StellaObject *>(storage);
-
-      object::initialize_object(result, descriptor);
-
-      return result;
+      return finish_allocation(storage, descriptor, size);
     }
 
     collection::BeginCollectCycle();
 
-    collection::Step(gc_state.StepBudget());
+    collection::IncrementalStep();
   }
 
   if (gc_state.CollectionState() == CollectionPhase::Idle) {
@@ -138,11 +169,7 @@ StellaValue alloc(const StellaObjectDescriptor *descriptor) {
     std::byte *storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
 
     if (storage != nullptr) {
-      auto *result = reinterpret_cast<StellaObject *>(storage);
-
-      object::initialize_object(result, descriptor);
-
-      return result;
+      return finish_allocation(storage, descriptor, size);
     }
   }
 
@@ -152,27 +179,19 @@ StellaValue alloc(const StellaObjectDescriptor *descriptor) {
         heap.ToSpace().AllocateHigh(size, alignof(StellaObject));
 
     if (storage != nullptr) {
-      auto *result = reinterpret_cast<StellaObject *>(storage);
-
-      object::initialize_object(result, descriptor);
-
-      return result;
+      return finish_allocation(storage, descriptor, size);
     }
 
-    collection::Collect();
+    emergency_collect();
   }
 
   std::byte *storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
 
   if (storage != nullptr) {
-    auto *result = reinterpret_cast<StellaObject *>(storage);
-
-    object::initialize_object(result, descriptor);
-
-    return result;
+    return finish_allocation(storage, descriptor, size);
   }
 
-  collection::Collect();
+  emergency_collect();
 
   storage = heap.FromSpace().Allocate(size, alignof(StellaObject));
 
@@ -180,11 +199,7 @@ StellaValue alloc(const StellaObjectDescriptor *descriptor) {
     stella_gc_out_of_memory(size);
   }
 
-  auto *result = reinterpret_cast<StellaObject *>(storage);
-
-  object::initialize_object(result, descriptor);
-
-  return result;
+  return finish_allocation(storage, descriptor, size);
 }
 
 // init
@@ -244,12 +259,19 @@ StellaValue read_managed(StellaValue *object_root, size_t index) {
 
   object::validate_managed_index(value, index);
 
+  auto &gc_state = get_gc_state();
+  ++gc_state.GetStats().managed_reads;
+
   StellaValue &field = value->fields[index].managed;
 
-  if (get_gc_state().CollectionState() == CollectionPhase::Collecting) {
-    field = copying::Forward(field);
+  if (gc_state.CollectionState() == CollectionPhase::Collecting) {
+    StellaValue old_value = field;
+    StellaValue new_value = copying::Forward(old_value);
+    field = new_value;
+    if (new_value != old_value) {
+      ++gc_state.GetStats().read_barrier_activations;
+    }
   }
-
   return field;
 }
 
@@ -276,6 +298,8 @@ void write_managed(StellaValue *object_root, size_t index,
   }
 
   object->fields[index].managed = *value_root;
+
+  ++get_gc_state().GetStats().managed_writes;
 }
 
 // read/write primitives
@@ -286,7 +310,11 @@ StellaPrimitive object_read_primitive(StellaValue object, size_t index) {
 
   const size_t physical_index = object->descriptor->managed_count + index;
 
-  return object->fields[physical_index].primitive;
+  const StellaPrimitive result = object->fields[physical_index].primitive;
+
+  ++get_gc_state().GetStats().primitive_reads;
+
+  return result;
 }
 void object_write_primitive(StellaValue object, size_t index,
                             StellaPrimitive value) {
@@ -301,6 +329,8 @@ void object_write_primitive(StellaValue object, size_t index,
   const std::size_t physical_index = object->descriptor->managed_count + index;
 
   object->fields[physical_index].primitive = value;
+
+  ++get_gc_state().GetStats().primitive_writes;
 }
 
 void update_object(StellaValue *object_root,
@@ -369,6 +399,10 @@ void update_object(StellaValue *object_root,
   }
 
   object->descriptor = new_descriptor;
+
+  auto &gc_stats = get_gc_state().GetStats();
+  gc_stats.managed_writes += m;
+  gc_stats.primitive_writes += p;
 }
 
 // diagnostics

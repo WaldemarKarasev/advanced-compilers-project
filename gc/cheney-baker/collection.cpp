@@ -15,6 +15,10 @@ void BeginCollectCycle() {
   // clean to space before start copying
   heap.ToSpace().Reset();
 
+  // Reset per-cycle statistics before Forward starts
+  // copying reachable objects.
+  gc_state.GetStats().BeginCycle();
+
   // begin collecting
   gc_state.SetCollectionState(CollectionPhase::Collecting);
 
@@ -63,6 +67,8 @@ void FinishCycle() {
 
   heap.SwapSpaces();
 
+  state.GetStats().FinishCycle();
+
   state.SetScan(nullptr);
 
   state.SetCollectionState(CollectionPhase::Idle);
@@ -74,6 +80,8 @@ void IncrementalStep() {
   if (gc_state.CollectionState() != CollectionPhase::Collecting) {
     return;
   }
+
+  ++gc_state.GetStats().normal_steps;
 
   Step(gc_state.StepBudget());
 }
