@@ -28,9 +28,15 @@ void init(const StellaGcConfig *config) {
     stella_abi_violation(errors::gc_invalid_config_heap_size);
   }
 
-  if (not get_gc_state().Init(config->max_heap_bytes)) {
+  const std::size_t step_budget = read_step_budget();
+
+  auto &gc_state = get_gc_state();
+
+  if (not gc_state.Init(config->max_heap_bytes)) {
     stella_gc_out_of_memory(config->max_heap_bytes);
   }
+
+  gc_state.SetStepBudget(step_budget);
 }
 
 void shutdown(void) {

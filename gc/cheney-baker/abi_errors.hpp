@@ -12,6 +12,8 @@ inline constexpr char gc_null_config[] = "StellaGcConfig is nullptr!";
 inline constexpr char gc_invalid_abi_version[] = "Unsupported GC abi version!";
 inline constexpr char gc_invalid_config_heap_size[] =
     "max_heap_bytes equals 0!";
+inline constexpr char gc_invalid_step_budget[] =
+    "STELLA_GC_STEP_BUDGET must be a positive integer!";
 // init managed
 inline constexpr char gc_im_null_obj[] = "Null object!";
 inline constexpr char gc_im_obj_not_owned[] = "Object not owned by GC!";

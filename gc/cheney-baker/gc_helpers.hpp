@@ -3,9 +3,12 @@
 #include <cinttypes>
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib>
+#include <limits>
 
 #include "gc_state.hpp"
 #include "object.hpp"
+#include "abi_errors.hpp"
 
 namespace hw::stella::gc {
 
@@ -75,7 +78,8 @@ inline void print_object_range(FILE *output, std::byte *begin, std::byte *end) {
   }
 }
 
-inline void print_space(FILE *output, const char *name, heap::SemiSpace &space) {
+inline void print_space(FILE *output, const char *name,
+                        heap::SemiSpace &space) {
 
   std::fprintf(output,
                "%s:\n"
@@ -99,6 +103,42 @@ inline void print_space(FILE *output, const char *name, heap::SemiSpace &space) 
   std::fprintf(output, "  high objects:\n");
 
   print_object_range(output, space.Limit(), space.End());
+}
+
+inline std::size_t read_step_budget() {
+  const char *value = std::getenv("STELLA_GC_STEP_BUDGET");
+
+  if (value == nullptr) {
+    return kDefaultStepBudget;
+  }
+
+  if (*value == '\0') {
+    stella_abi_violation(errors::gc_invalid_step_budget);
+  }
+
+  std::size_t result = 0;
+
+  for (const char *current = value; *current != '\0'; ++current) {
+
+    if (*current < '0' || *current > '9') {
+      stella_abi_violation(errors::gc_invalid_step_budget);
+    }
+
+    const std::size_t digit = static_cast<std::size_t>(*current - '0');
+
+    if (result > (std::numeric_limits<std::size_t>::max() - digit) / 10) {
+
+      stella_abi_violation(errors::gc_invalid_step_budget);
+    }
+
+    result = result * 10 + digit;
+  }
+
+  if (result == 0) {
+    stella_abi_violation(errors::gc_invalid_step_budget);
+  }
+
+  return result;
 }
 
 } // namespace hw::stella::gc
