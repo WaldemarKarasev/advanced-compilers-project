@@ -6,3 +6,5 @@ target_include_directories(cheney_baker_copying_test
     PRIVATE
         ${PROJECT_INCLUDE_DIR}/gc/cheney-baker
 )
+
+add_gc_test(step_budget_parsing_test step_budget_parsing_test.cpp stella::cheney_baker_gc)

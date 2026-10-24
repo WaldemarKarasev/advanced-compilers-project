@@ -7,13 +7,13 @@
 
 using namespace hw::stella;
 
-using GcCopyingTest = gc::test::GcFixture<>;
+using CheneyBakerCopyingTest = gc::test::GcFixture<>;
 
-TEST_F(GcCopyingTest, ForwardKeepsNull) {
+TEST_F(CheneyBakerCopyingTest, ForwardKeepsNull) {
   EXPECT_EQ(gc::copying::Forward(nullptr), nullptr);
 }
 
-TEST_F(GcCopyingTest, ForwardCopiesObjectToToSpace) {
+TEST_F(CheneyBakerCopyingTest, ForwardCopiesObjectToToSpace) {
   auto descriptor = gc::test::make_descriptor(1, 1, 2);
 
   StellaValue old_object = stella_gc_alloc(&descriptor);
@@ -34,7 +34,7 @@ TEST_F(GcCopyingTest, ForwardCopiesObjectToToSpace) {
   EXPECT_EQ(new_object->fields[1].primitive, 42u);
 }
 
-TEST_F(GcCopyingTest, ForwardReturnsSameCopyOnRepeatedVisit) {
+TEST_F(CheneyBakerCopyingTest, ForwardReturnsSameCopyOnRepeatedVisit) {
   auto descriptor = gc::test::make_descriptor();
 
   StellaValue old_object = stella_gc_alloc(&descriptor);
@@ -47,7 +47,7 @@ TEST_F(GcCopyingTest, ForwardReturnsSameCopyOnRepeatedVisit) {
   EXPECT_NE(first, old_object);
 }
 
-TEST_F(GcCopyingTest, ScanPreservesSharing) {
+TEST_F(CheneyBakerCopyingTest, ScanPreservesSharing) {
   auto leaf_descriptor = gc::test::make_descriptor();
 
   auto owner_descriptor = gc::test::make_descriptor(2, 0, 2);
@@ -70,7 +70,7 @@ TEST_F(GcCopyingTest, ScanPreservesSharing) {
   EXPECT_NE(owner_copy->fields[0].managed, leaf);
 }
 
-TEST_F(GcCopyingTest, ScanDoesNotTouchPrimitiveFields) {
+TEST_F(CheneyBakerCopyingTest, ScanDoesNotTouchPrimitiveFields) {
   auto descriptor = gc::test::make_descriptor(0, 1, 1);
 
   StellaValue object = stella_gc_alloc(&descriptor);
@@ -88,7 +88,7 @@ TEST_F(GcCopyingTest, ScanDoesNotTouchPrimitiveFields) {
 
 #include <stella/scalar.h>
 
-TEST_F(GcCopyingTest, ForwardDoesNotMoveStaticObject) {
+TEST_F(CheneyBakerCopyingTest, ForwardDoesNotMoveStaticObject) {
   StellaValue value = &stella_bool_true;
 
   EXPECT_EQ(gc::copying::Forward(value), value);
