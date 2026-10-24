@@ -76,6 +76,12 @@ TEST_F(GcUpdateObjectTest, ClearsInactiveSlotsAfterShrinking) {
 
   EXPECT_EQ(inactive_managed, nullptr);
   EXPECT_EQ(inactive_primitive, 0u);
+
+  StellaValue active_managed = stella_gc_read_managed(&object, 0);
+  StellaPrimitive active_primitive = stella_object_read_primitive(object, 0);
+
+  EXPECT_EQ(active_managed, replacement);
+  EXPECT_EQ(active_primitive, 42u);
 }
 
 TEST_F(GcUpdateObjectTest, RejectsUpdateWithoutUpdatableFlag) {
@@ -110,7 +116,7 @@ TEST_F(GcUpdateObjectTest, RejectsStaticNewDescriptor) {
   stella_gc_pop_root(&object);
 }
 
-TEST_F(GcUpdateObjectTest, RejectsNewLayoutExceedingSlotCapacity) {
+TEST_F(GcUpdateObjectTest, RejectsNewDescriptorWithDifferentSlotCapacity) {
   auto old_descriptor =
       gc::test::make_descriptor(0, 0, 1, STELLA_DESCRIPTOR_UPDATABLE);
   auto new_descriptor = gc::test::make_descriptor(0, 2, 2);
@@ -125,6 +131,57 @@ TEST_F(GcUpdateObjectTest, RejectsNewLayoutExceedingSlotCapacity) {
       {
         stella_gc_update_object(&object, &new_descriptor, nullptr,
                                 new_primitives);
+      },
+      ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
+
+  stella_gc_pop_root(&object);
+}
+
+TEST_F(GcUpdateObjectTest, RejectsNullManagedRoots) {
+  auto old_descriptor =
+      gc::test::make_descriptor(0, 0, 1, STELLA_DESCRIPTOR_UPDATABLE);
+  auto new_descriptor = gc::test::make_descriptor(1, 0, 1);
+
+  StellaValue object = nullptr;
+  stella_gc_push_root(&object);
+  object = stella_gc_alloc(&old_descriptor);
+
+  EXPECT_EXIT(
+      { stella_gc_update_object(&object, &new_descriptor, nullptr, nullptr); },
+      ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
+
+  stella_gc_pop_root(&object);
+}
+
+TEST_F(GcUpdateObjectTest, RejectsNullPrimitiveValues) {
+  auto old_descriptor =
+      gc::test::make_descriptor(0, 0, 1, STELLA_DESCRIPTOR_UPDATABLE);
+  auto new_descriptor = gc::test::make_descriptor(0, 1, 1);
+
+  StellaValue object = nullptr;
+  stella_gc_push_root(&object);
+  object = stella_gc_alloc(&old_descriptor);
+
+  EXPECT_EXIT(
+      { stella_gc_update_object(&object, &new_descriptor, nullptr, nullptr); },
+      ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
+
+  stella_gc_pop_root(&object);
+}
+
+TEST_F(GcUpdateObjectTest, RejectsNullManagedRootEntry) {
+  auto old_descriptor =
+      gc::test::make_descriptor(0, 0, 1, STELLA_DESCRIPTOR_UPDATABLE);
+  auto new_descriptor = gc::test::make_descriptor(1, 0, 1);
+  StellaValue *new_managed[] = {nullptr};
+
+  StellaValue object = nullptr;
+  stella_gc_push_root(&object);
+  object = stella_gc_alloc(&old_descriptor);
+
+  EXPECT_EXIT(
+      {
+        stella_gc_update_object(&object, &new_descriptor, new_managed, nullptr);
       },
       ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
 
