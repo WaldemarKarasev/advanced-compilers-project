@@ -9,3 +9,5 @@ add_gc_test(field_access_test field_access_test.cpp stella::cheney_baker_gc)
 add_gc_test(lifecycle_test lifecycle_test.cpp stella::cheney_baker_gc)
 
 add_gc_test(root_test root_test.cpp stella::cheney_baker_gc)
+
+add_gc_test(update_object_test update_object_test.cpp stella::cheney_baker_gc)
