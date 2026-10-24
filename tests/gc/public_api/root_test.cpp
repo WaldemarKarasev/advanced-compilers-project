@@ -1,24 +1,17 @@
-#include "utils/config.hpp"
-#include "utils/descriptor.hpp"
+// gtest
+#include <gtest/gtest.h>
+
+#include <utils/config.hpp>
+#include <utils/descriptor.hpp>
+#include <utils/gc_fixture.hpp>
 
 #include <bindings/gc.hpp>
-#include <gtest/gtest.h>
 
 #include <cstdlib>
 
 using namespace hw::stella;
 
-class GcRootTest : public ::testing::Test {
-protected:
-  static void SetUpTestSuite() {
-    auto config = gc::test::make_config(64 * 1024);
-    stella_gc_init(&config);
-  }
-
-  static void TearDownTestSuite() {
-    stella_gc_shutdown();
-  }
-};
+using GcRootTest = gc::test::GcFixture<>;
 
 TEST_F(GcRootTest, PushesAndPopsRoot) {
   StellaValue root = nullptr;
@@ -65,8 +58,7 @@ TEST_F(GcRootTest, RejectsPopOutOfOrder) {
 
         stella_gc_pop_root(&first);
       },
-      ::testing::ExitedWithCode(EXIT_FAILURE),
-      "ABI violation");
+      ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
 }
 
 TEST_F(GcRootTest, RejectsDuplicateDynamicRoot) {
@@ -77,8 +69,7 @@ TEST_F(GcRootTest, RejectsDuplicateDynamicRoot) {
         stella_gc_push_root(&root);
         stella_gc_push_root(&root);
       },
-      ::testing::ExitedWithCode(EXIT_FAILURE),
-      "ABI violation");
+      ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
 }
 
 TEST_F(GcRootTest, RejectsRootRegisteredAsDynamicAndPermanent) {
@@ -89,8 +80,7 @@ TEST_F(GcRootTest, RejectsRootRegisteredAsDynamicAndPermanent) {
         stella_gc_push_root(&root);
         stella_gc_register_permanent_root(&root);
       },
-      ::testing::ExitedWithCode(EXIT_FAILURE),
-      "ABI violation");
+      ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
 }
 
 TEST_F(GcRootTest, AllowsDifferentRootsForSameObject) {
@@ -122,8 +112,7 @@ TEST(GcRootDeathTest, RejectsShutdownWithDynamicRoots) {
 
         stella_gc_shutdown();
       },
-      ::testing::ExitedWithCode(EXIT_FAILURE),
-      "ABI violation");
+      ::testing::ExitedWithCode(EXIT_FAILURE), "ABI violation");
 }
 
 TEST(GcRootDeathTest, AllowsShutdownWithPermanentRoot) {
@@ -140,6 +129,5 @@ TEST(GcRootDeathTest, AllowsShutdownWithPermanentRoot) {
 
         std::exit(EXIT_SUCCESS);
       },
-      ::testing::ExitedWithCode(EXIT_SUCCESS),
-      "");
+      ::testing::ExitedWithCode(EXIT_SUCCESS), "");
 }

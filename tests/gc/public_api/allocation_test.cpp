@@ -1,5 +1,6 @@
 #include "utils/config.hpp"
 #include "utils/descriptor.hpp"
+#include "utils/gc_fixture.hpp"
 
 #include <gtest/gtest.h>
 
@@ -7,15 +8,7 @@
 
 using namespace hw::stella;
 
-class GcAllocationTest : public ::testing::Test {
-protected:
-  static void SetUpTestSuite() {
-    auto config = gc::test::make_config(64 * 1024);
-    stella_gc_init(&config);
-  }
-
-  static void TearDownTestSuite() { stella_gc_shutdown(); }
-};
+using GcAllocationTest = gc::test::GcFixture<>;
 
 TEST_F(GcAllocationTest, AllocatesObjectWithoutFields) {
   auto descriptor = gc::test::make_descriptor();

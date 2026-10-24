@@ -1,18 +1,17 @@
-#include "utils/config.hpp"
-#include "utils/descriptor.hpp"
+#include <utils/descriptor.hpp>
+#include <utils/gc_fixture.hpp>
 
 #include <bindings/gc.hpp>
+#include <cstddef>
 #include <gtest/gtest.h>
 
 using namespace hw::stella;
 
-TEST(GcCollectionTest, ReclaimsGarbageAndPreservesCycle) {
-  constexpr std::size_t object_size = sizeof(StellaObject) + sizeof(StellaSlot);
+constexpr size_t object_size = sizeof(StellaObject) + sizeof(StellaSlot);
+constexpr size_t heap_size = 4 * (object_size);
+using GcCollectionTest = gc::test::GcFixture<heap_size>;
 
-  auto config = gc::test::make_config(4 * object_size);
-
-  stella_gc_init(&config);
-
+TEST_F(GcCollectionTest, ReclaimsGarbageAndPreservesCycle) {
   auto descriptor = gc::test::make_descriptor(1, 0, 1);
 
   // unreachable garbage
@@ -59,4 +58,5 @@ TEST(GcCollectionTest, ReclaimsGarbageAndPreservesCycle) {
   EXPECT_EQ(back_edge, root);
 
   stella_gc_pop_root(&new_child);
+  stella_gc_pop_root(&root);
 }
