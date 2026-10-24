@@ -14,6 +14,7 @@ configure:
         -S . \
         -B {{build_dir}} \
         -DCMAKE_BUILD_TYPE={{build_type}} \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
         -DBUILD_TESTING=ON
 
 # Build project, examples, and tests
