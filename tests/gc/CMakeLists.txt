@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(GC_UTILS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/utils)
+# utils interface
+add_library(gc_test_utils INTERFACE)
+
+target_include_directories(gc_test_utils
+    INTERFACE
+        "${CMAKE_CURRENT_LIST_DIR}"
+)
+add_library(stella::gc_test_utils ALIAS gc_test_utils)
+
 
 function(add_gc_test test_name src_files gc_lib)
     message(STATUS "Function add_gc_test(name=${test_name}, src_files={${src_files}}, gc_lib=${gc_lib})")
@@ -19,7 +27,7 @@ function(add_gc_test test_name src_files gc_lib)
     # utils directory include
     target_include_directories(${test_name}
         PRIVATE
-            ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/utils    
+                
     )
 
     # stella runtime linking
@@ -28,6 +36,7 @@ function(add_gc_test test_name src_files gc_lib)
             ${gc_lib}
             ${STELLA_RUNTIME_LIB}
             GTest::gtest_main
+            stella::gc_test_utils
     )
 
     set_target_properties(${test_name}
