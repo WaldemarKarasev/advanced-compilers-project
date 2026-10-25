@@ -1,7 +1,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 build_dir := env_var_or_default("BUILD_DIR", "build")
-sanitize_build_dir := env_var_or_default("BUILD_DIR", "build_sanitize")
+sanitize_build_dir := env_var_or_default("SANITIZE_BUILD_DIR", "build_sanitize")
 build_type := env_var_or_default("BUILD_TYPE", "Debug")
 jobs := env_var_or_default("JOBS", "10")
 step_budget := env_var_or_default("STELLA_GC_STEP_BUDGET", "1")

@@ -14,3 +14,4 @@ include(GoogleTest)
 
 # tests
 add_subdirectory(gc)
+add_subdirectory(integration)

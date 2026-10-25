@@ -25,4 +25,23 @@ target_link_libraries(cheney_baker_gc
 
 add_library(stella::cheney_baker_gc ALIAS cheney_baker_gc)
 
-create_stella_executable(chat_cheney_baker ${CMAKE_SOURCE_DIR}/examples/chat.c stella::cheney_baker_gc)
+# stella executables
+create_stella_executable(chat_cheney_baker 
+    ${CMAKE_SOURCE_DIR}/examples/chat.c 
+    stella::cheney_baker_gc
+)
+
+create_stella_executable(double_cheney_baker 
+    ${CMAKE_SOURCE_DIR}/examples/double.c 
+    stella::cheney_baker_gc
+)
+
+create_stella_executable(history_cheney_baker 
+    ${CMAKE_SOURCE_DIR}/examples/history.c 
+    stella::cheney_baker_gc
+)
+
+create_stella_executable(playlist_cheney_baker 
+    ${CMAKE_SOURCE_DIR}/examples/playlist.c 
+    stella::cheney_baker_gc
+)
