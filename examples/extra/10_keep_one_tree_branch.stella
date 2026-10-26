@@ -1,0 +1,30 @@
+language core;
+
+fn make_list(n : Nat) -> List[Nat] {
+  return Nat::rec(n, List::nil as List[Nat], |i, rest| List::cons(i, rest))
+}
+
+fn make_tree(n : Nat) -> List[List[Nat]] {
+  return Nat::rec(n, List::nil as List[List[Nat]], |i, folders| List::cons(make_list(i), folders))
+}
+
+fn length(xs : List[Nat]) -> Nat {
+  return match xs {
+    List::nil => Nat::zero
+  | List::cons(head, tail) => Nat::succ(length(tail))
+  }
+}
+
+fn main(n : Nat) -> Nat {
+  return match make_tree(n) {
+    List::nil => Nat::zero
+  | List::cons(first, rest) =>
+      match rest {
+        List::nil => length(first)
+      | List::cons(kept, other_folders) =>
+          let cell = Ref::new(kept) in
+            Nat::rec(n, Unit::unit, |i, acc| let garbage = make_tree(n) in Unit::unit);
+            length(!cell)
+      }
+  }
+}

@@ -1,0 +1,26 @@
+language core;
+
+fn make_list(n : Nat) -> List[Nat] {
+  return Nat::rec(n, List::nil as List[Nat],
+    |i, rest| List::cons(i, rest))
+}
+
+fn consume(cell : Ref[List[Nat]]) -> fn(Ref[List[Nat]]) -> fn(Nat) -> Nat {
+  return fn(trash : Ref[List[Nat]]) {
+    return fn(size : Nat) {
+      return match !cell {
+        List::nil => Nat::zero
+      | List::cons(head, tail) =>
+          cell := tail;
+          trash := make_list(size);
+          Nat::succ(consume(cell)(trash)(size))
+      }
+    }
+  }
+}
+
+fn main(n : Nat) -> Nat {
+  return let cell = Ref::new(make_list(n)) in
+    let trash = Ref::new(List::nil as List[Nat]) in
+      consume(cell)(trash)(n)
+}

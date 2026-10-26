@@ -1,0 +1,12 @@
+language core;
+
+fn make_adder(seed : Nat) -> fn(Nat) -> Nat {
+  return fn(x : Nat) {
+    return Nat::rec(x, seed, |i, acc| Nat::succ(acc))
+  }
+}
+
+fn main(n : Nat) -> Nat {
+  return let add_n = make_adder(n) in
+    add_n(n)
+}

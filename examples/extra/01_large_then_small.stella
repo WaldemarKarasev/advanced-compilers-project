@@ -1,0 +1,19 @@
+language core;
+
+fn make_list(n : Nat) -> List[Nat] {
+  return Nat::rec(n, List::nil as List[Nat], |i, rest| List::cons(i, rest))
+}
+
+fn length(xs : List[Nat]) -> Nat {
+  return match xs {
+    List::nil => Nat::zero
+  | List::cons(head, tail) => Nat::succ(length(tail))
+  }
+}
+
+fn main(n : Nat) -> Nat {
+  return let cell = Ref::new(List::nil as List[Nat]) in
+    cell := make_list(n);
+    cell := List::cons(Nat::zero, List::nil);
+    length(!cell)
+}

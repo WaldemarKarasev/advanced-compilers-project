@@ -1,0 +1,21 @@
+language core;
+
+fn make_list(n : Nat) -> List[Nat] {
+  return Nat::rec(n, List::nil as List[Nat], |i, rest| List::cons(i, rest))
+}
+
+fn length(xs : List[Nat]) -> Nat {
+  return match xs {
+    List::nil => Nat::zero
+  | List::cons(head, tail) => Nat::succ(length(tail))
+  }
+}
+
+fn pair_length(p : (List[Nat], List[Nat])) -> Nat {
+  return Nat::rec(length(p.1), length(p.2), |i, total| Nat::succ(total))
+}
+
+fn main(n : Nat) -> Nat {
+  return let xs = make_list(n) in
+    pair_length((xs, xs))
+}
