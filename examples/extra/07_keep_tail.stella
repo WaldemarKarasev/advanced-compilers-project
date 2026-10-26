@@ -22,5 +22,11 @@ fn consume(cell : Ref[List[Nat]]) -> fn(Ref[List[Nat]]) -> fn(Nat) -> Nat {
 fn main(n : Nat) -> Nat {
   return let cell = Ref::new(make_list(n)) in
     let trash = Ref::new(List::nil as List[Nat]) in
-      consume(cell)(trash)(n)
+      Nat::rec(n, Nat::zero, |i, consumed| match !cell {
+            List::nil => consumed
+          | List::cons(head, tail) =>
+              cell := tail;
+              trash := make_list(n);
+              Nat::succ(consumed)
+          })
 }

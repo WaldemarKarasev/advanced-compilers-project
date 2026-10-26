@@ -202,8 +202,8 @@ static void stella_fn_2(StellaValue *result_root, StellaValue *self_root, size_t
       argument_roots[0] == NULL || *argument_roots[0] == NULL) {
     stella_abi_violation("invalid generated function entry");
   }
-  StellaValue slots[9] = {NULL};
-  for (size_t i = 0; i < 9; ++i) stella_gc_push_root(&slots[i]);
+  StellaValue slots[20] = {NULL};
+  for (size_t i = 0; i < 20; ++i) stella_gc_push_root(&slots[i]);
   slots[0] = &stella_fn_0_closure;
   {
     StellaValue *arguments[] = {argument_roots[0]};
@@ -214,21 +214,46 @@ static void stella_fn_2(StellaValue *result_root, StellaValue *self_root, size_t
   slots[3] = &stella_data_nil;
   slots[4] = stella_gc_alloc(&stella_data_reference_descriptor);
   stella_object_init_managed(slots[4], 0, slots[3]);
-  slots[5] = &stella_fn_1_closure;
-  {
-    StellaValue *arguments[] = {&slots[2]};
-    slots[5]->descriptor->entry_code(&slots[6], &slots[5], 1, arguments);
+  slots[5] = (*argument_roots[0]);
+  slots[6] = &stella_nat_zero;
+  slots[7] = slots[6];
+  slots[8] = &stella_nat_zero;
+  while (slots[5] != &stella_nat_zero) {
+    if (slots[5]->descriptor != &stella_nat_succ_descriptor) {
+      stella_abi_violation("invalid recursor count");
+    }
+    slots[9] = stella_gc_read_managed(&slots[2], 0);
+    if (slots[9] == &stella_data_nil) {
+      slots[10] = slots[7];
+    }
+    else if (slots[9]->descriptor == &stella_data_cons_descriptor) {
+      slots[11] = stella_gc_read_managed(&slots[9], 0);
+      slots[12] = stella_gc_read_managed(&slots[9], 1);
+      stella_gc_write_managed(&slots[2], 0, &slots[12]);
+      slots[13] = &stella_unit;
+      slots[14] = &stella_fn_0_closure;
+      {
+        StellaValue *arguments[] = {argument_roots[0]};
+        slots[14]->descriptor->entry_code(&slots[15], &slots[14], 1, arguments);
+      }
+      stella_gc_write_managed(&slots[4], 0, &slots[15]);
+      slots[16] = &stella_unit;
+      slots[17] = stella_gc_alloc(&stella_nat_succ_descriptor);
+      stella_object_init_managed(slots[17], 0, slots[7]);
+      slots[10] = slots[17];
+    }
+    else {
+      stella_abi_violation("invalid match constructor");
+    }
+    slots[7] = slots[10];
+    slots[18] = stella_gc_alloc(&stella_nat_succ_descriptor);
+    stella_object_init_managed(slots[18], 0, slots[8]);
+    slots[8] = slots[18];
+    slots[19] = stella_gc_read_managed(&slots[5], 0);
+    slots[5] = slots[19];
   }
-  {
-    StellaValue *arguments[] = {&slots[4]};
-    slots[6]->descriptor->entry_code(&slots[7], &slots[6], 1, arguments);
-  }
-  {
-    StellaValue *arguments[] = {argument_roots[0]};
-    slots[7]->descriptor->entry_code(&slots[8], &slots[7], 1, arguments);
-  }
-  *result_root = slots[8];
-  for (size_t i = 9; i > 0; --i) stella_gc_pop_root(&slots[i - 1]);
+  *result_root = slots[7];
+  for (size_t i = 20; i > 0; --i) stella_gc_pop_root(&slots[i - 1]);
 }
 
 void stella_program_entry(StellaValue *result_root, StellaValue *argument_root) {
