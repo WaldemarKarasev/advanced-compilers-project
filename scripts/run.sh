@@ -25,5 +25,3 @@ run_stella_executable $EXECUTABLE_NAME $ARG $((2**13))
 run_stella_executable $EXECUTABLE_NAME $ARG $((2**14))
 run_stella_executable $EXECUTABLE_NAME $ARG $((2**15))
 run_stella_executable $EXECUTABLE_NAME $ARG $((2**16))
-
-

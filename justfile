@@ -55,8 +55,16 @@ sanitize-test: sanitize-build
         --output-on-failure
 
 # remove build dir with all artifacts
+clean-all:
+    rm -rf {{build_dir}}
+    rm -rf {{sanitize_build_dir}}
+
 clean:
     rm -rf {{build_dir}}
+    
+sanitize-clean:
+    rm -rf {{sanitize_build_dir}}
 
 # fresh rebuild
 rebuild: clean build
+sanitize-rebuild: sanitize-clean sanitize-build

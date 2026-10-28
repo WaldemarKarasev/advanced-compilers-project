@@ -10,17 +10,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 
 # compile options
-# add_compile_options(
-#     $<$<COMPILE_LANGUAGE:C>:-Wall>
-#     $<$<COMPILE_LANGUAGE:C>:-Wextra>
-#     $<$<COMPILE_LANGUAGE:C>:-Wpedantic>
-# )
-
-# add_compile_options(
-#     $<$<COMPILE_LANGUAGE:CXX>:-Wall>
-#     $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
-#     $<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>
-# )
+include(cmake/compiler_options.cmake)
 
 # common vars
 set(STELLA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -73,3 +63,36 @@ include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
+
+
+# Logging of toolchain and build settings used for project
+message(STATUS "")
+message(STATUS "Stella GC build configuration")
+
+# system
+message(STATUS "CMake version: ${CMAKE_VERSION}")
+message(STATUS "Generator: ${CMAKE_GENERATOR}")
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "System: ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
+message(STATUS "Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+
+# C
+message(STATUS "C compiler: ${CMAKE_C_COMPILER}")
+message(STATUS "C standard: ${CMAKE_C_STANDARD}")
+# C++
+message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Executable linker flags: ${CMAKE_EXE_LINKER_FLAGS}")
+# compile options
+list(JOIN C_COMPILE_OPTIONS " " STELLA_C_FLAGS_FOR_LOG)
+list(JOIN CXX_COMPILE_OPTIONS " " STELLA_CXX_FLAGS_FOR_LOG)
+
+message(STATUS "Compile options:")
+message(STATUS "  C:   ${STELLA_C_FLAGS_FOR_LOG}")
+message(STATUS "  C++: ${STELLA_CXX_FLAGS_FOR_LOG}")
+
+# directories
+message(STATUS "Build tests: ${BUILD_TESTING}")
+message(STATUS "Source directory: ${CMAKE_SOURCE_DIR}")
+message(STATUS "Build directory: ${CMAKE_BINARY_DIR}")
+
