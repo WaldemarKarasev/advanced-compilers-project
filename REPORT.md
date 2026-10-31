@@ -4,6 +4,8 @@
 **Repository:** <https://github.com/WaldemarKarasev/advanced-compilers-project>  
 **Submission commit:** [`5a010fe`](https://github.com/WaldemarKarasev/advanced-compilers-project/commit/5a010fe57ef1ed28f08871b0526b202fcd4cb7a7) 
 
+**Russian version:** [REPORT_RU.md](REPORT_RU.md) - AI-assisted translation.
+
 ## Report navigation
 
 - [Build and run](REPORT.md#build-and-run)
